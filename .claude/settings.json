@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "allow": [
+      "Write",
+      "Edit",
+      "Read",
+      "Glob",
+      "Grep",
+      "PowerShell(.\\.claude\\commands\\server\\start.ps1)",
+      "PowerShell(.\\.claude\\commands\\server\\stop.ps1)"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if (-not (Test-Path \"GOAL.md\")) { Write-Output '{\"hookSpecificOutput\": {\"hookEventName\": \"SessionStart\", \"additionalContext\": \"GOAL.mdが存在しません。作業を始める前に /goal コマンドでゴールを設定してください。\"}}' }",
+            "shell": "powershell"
+          }
+        ]
+      }
+    ]
+  }
+}
