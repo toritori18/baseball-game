@@ -1,0 +1,30 @@
+@using BaseballGame.Models
+
+<table class="table table-sm table-bordered">
+    <thead class="table-light">
+        <tr><th>選手</th><th>打数</th><th>安打</th><th>本塁打</th><th>打点</th></tr>
+    </thead>
+    <tbody>
+        @if (Lines.Count == 0)
+        {
+            <tr><td colspan="5" class="text-muted text-center">データなし</td></tr>
+        }
+        else
+        {
+            @foreach (var line in Lines)
+            {
+                <tr>
+                    <td>@line.PlayerName</td>
+                    <td>@line.AtBats</td>
+                    <td>@line.Hits</td>
+                    <td>@line.HomeRuns</td>
+                    <td>@line.Rbi</td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter, EditorRequired] public List<BattingLine> Lines { get; set; } = [];
+}

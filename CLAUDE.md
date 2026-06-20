@@ -1,4 +1,4 @@
-# CLAUDE.md — {{プロジェクト名}}
+# CLAUDE.md — プロ野球試合結果トラッカー
 
 ## プロジェクト概要
 
@@ -8,6 +8,10 @@
 
 | 役割 | 技術 |
 |---|---|
+| UI / サーバー | ASP.NET Core Blazor Server (.NET 8) |
+| スクレイピング | HtmlAgilityPack |
+| データ管理 | IMemoryCache |
+| スタイル | Bootstrap 5 |
 
 詳細は [docs/tech-stack.md](docs/tech-stack.md) を参照してください。
 
@@ -20,34 +24,34 @@ Gitに関するルールは以下のファイルを参照してください:
 ## ディレクトリ構成
 
 ```
-{{プロジェクト名}}/
+baseball-game/
 ├── CLAUDE.md               # このファイル
 ├── README.md               # プロジェクト説明
-├── package.json            # 依存関係・スクリプト
+├── BaseballGame.sln
 ├── .gitignore
-├── .env.example            # 環境変数のサンプル
 ├── .claude/                # Claude Code設定
 │   ├── settings.json       # 権限設定
-│   └── commands/           # カスタムスラッシュコマンド（.md + 実行スクリプト）
+│   └── commands/           # カスタムスラッシュコマンド
 │       ├── git/            # /git:branch、/git:push
 │       ├── server/         # /server:start、/server:stop
-│       ├── db/             # /db:migrate
 │       ├── setup.md        # /setup
 │       ├── build.md        # /build
-│       ├── lint.md         # /lint
-│       └── deploy.md       # /deploy
-├── src/                    # ソースコード
-│   ├── components/         # UIコンポーネント
-│   ├── pages/              # ページ
-│   ├── utils/              # ユーティリティ
-│   ├── assets/             # 画像・フォントなどの静的リソース
-│   └── styles/             # スタイルシート
-├── docs/                   # ドキュメント
-│   ├── git-rules.md        # Git運用ルール
-│   ├── tech-stack.md       # 技術スタック
-│   ├── setup.md            # セットアップガイド
-│   ├── contributing.md     # コントリビュートガイド
-│   └── sql/                # SQLファイル（マイグレーション・初期データ等）
+│       └── lint.md         # /lint
+├── BaseballGame/           # Blazor Serverプロジェクト
+│   ├── BaseballGame.csproj
+│   ├── Program.cs
+│   ├── App.razor
+│   ├── Components/
+│   │   ├── Layout/         # レイアウトコンポーネント
+│   │   └── Pages/          # ページコンポーネント
+│   ├── Services/           # スクレイピング・ビジネスロジック
+│   ├── Models/             # データモデル
+│   └── wwwroot/            # 静的ファイル
+└── docs/                   # ドキュメント
+    ├── git-rules.md        # Git運用ルール
+    ├── tech-stack.md       # 技術スタック
+    ├── setup.md            # セットアップガイド
+    └── contributing.md     # コントリビュートガイド
 ```
 
 ## コーディング規約・禁止事項

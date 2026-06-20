@@ -39,3 +39,14 @@ next-env.d.ts
 
 # Vercel
 .vercel
+
+# .NET / Blazor
+bin/
+obj/
+*.user
+.vs/
+
+# SQLite DB（NPBスクレイピングデータは含めない）
+*.db
+*.db-shm
+*.db-wal

@@ -1,11 +1,12 @@
-# {{プロジェクト名}}
+# プロ野球試合結果トラッカー
 
-{{プロジェクトの簡単な説明}}
+NPB（日本プロ野球）の全試合結果を自動取得・表示するローカル専用Webアプリ。読売ジャイアンツの試合をハイライト表示し、勝敗予想も確認できる。
 
 ## 機能
 
-- {{機能1}}
-- {{機能2}}
+- 今日の全試合結果一覧表示（ジャイアンツ戦をハイライト）
+- 試合詳細画面（打者成績・投手成績・得点シーン）
+- 勝敗予想（ピタゴラス勝率 + 先発投手ERA）
 
 ## 技術スタック
 
@@ -16,10 +17,16 @@
 詳細は [docs/setup.md](docs/setup.md) を参照してください。
 
 ```bash
-npm install
-cp .env.example .env.local
-npm run dev
+dotnet restore BaseballGame/BaseballGame.csproj
+dotnet run --project BaseballGame
 ```
+
+起動後、ブラウザで `https://localhost:5001` を開く。
+
+## 注意事項
+
+- ローカル専用・個人利用・非商用
+- npb.jp のデータを使用しているため外部公開・再配布は禁止
 
 ## ドキュメント
 
