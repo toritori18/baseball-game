@@ -1,5 +1,8 @@
 namespace BaseballGame.Models;
 
+/// <summary>
+/// ピタゴラス勝率・先発ERA・勝敗投手を含む1試合分の勝率予想
+/// </summary>
 public record GamePrediction
 {
     public string HomeTeam { get; init; } = "";

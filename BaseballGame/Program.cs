@@ -16,11 +16,12 @@ builder.Services.AddRazorComponents()
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+// HTTPリクエストパイプラインを設定する
+// 本番環境のみエラーハンドラーとHSTSを有効化する
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    // HSTSのデフォルト有効期間は30日（本番運用では変更を検討すること）
     app.UseHsts();
 }
 

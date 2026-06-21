@@ -1,5 +1,8 @@
 namespace BaseballGame.Models;
 
+/// <summary>
+/// 試合一覧画面で表示する1試合分のサマリー情報
+/// </summary>
 public record GameResult
 {
     public string GameId { get; init; } = "";
