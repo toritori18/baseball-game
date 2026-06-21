@@ -159,6 +159,9 @@ else
     private BaseballGame.Models.GamePrediction? prediction;
     private bool isLoading = true;
 
+    /// <summary>
+    /// クエリパラメータのURLをもとに試合詳細と勝率予想を取得する
+    /// </summary>
     protected override async Task OnInitializedAsync()
     {
         if (!string.IsNullOrEmpty(DetailUrl))
