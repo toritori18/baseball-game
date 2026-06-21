@@ -2,7 +2,7 @@
 
 <table class="table table-sm table-bordered">
     <thead class="table-light">
-        <tr><th>選手</th><th>打数</th><th>安打</th><th>本塁打</th><th>打点</th></tr>
+        <tr><th>選手</th><th>打数</th><th>得点</th><th>安打</th><th>打点</th></tr>
     </thead>
     <tbody>
         @if (Lines.Count == 0)
@@ -16,8 +16,8 @@
                 <tr>
                     <td>@line.PlayerName</td>
                     <td>@line.AtBats</td>
+                    <td>@line.Runs</td>
                     <td>@line.Hits</td>
-                    <td>@line.HomeRuns</td>
                     <td>@line.Rbi</td>
                 </tr>
             }

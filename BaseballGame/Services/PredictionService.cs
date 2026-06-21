@@ -6,16 +6,43 @@ public class PredictionService(NpbScraperService scraper)
 {
     public async Task<List<GamePrediction>> GetPredictionsAsync(List<GameResult> games)
     {
-        var standings = await scraper.GetStandingsAsync();
+        // 順位表とチーム得失点を並行取得
+        var standingsTask = scraper.GetStandingsAsync();
+        var runStatsTask  = scraper.GetTeamRunStatsAsync();
+        await Task.WhenAll(standingsTask, runStatsTask);
+
+        var standings = standingsTask.Result;
+        var runStats  = runStatsTask.Result;
         var predictions = new List<GamePrediction>();
 
         foreach (var game in games)
         {
             string? awayStarter = null, homeStarter = null;
-            if (!string.IsNullOrEmpty(game.DetailUrl))
-                (awayStarter, homeStarter) = await scraper.GetStartersFromDetailAsync(game.DetailUrl);
+            string? winPitcher = null, lossPitcher = null, savePitcher = null;
+            double? homeEra = null, awayEra = null;
 
-            var prediction = BuildPrediction(game, standings, awayStarter, homeStarter);
+            if (!string.IsNullOrEmpty(game.DetailUrl))
+            {
+                var pitchersTask = scraper.GetStartersFromDetailAsync(game.DetailUrl);
+                var eraTask      = scraper.GetStarterErasAsync(game.DetailUrl);
+                await Task.WhenAll(pitchersTask, eraTask);
+
+                var pitchers = pitchersTask.Result;
+                awayStarter = pitchers.AwayStarter;
+                homeStarter = pitchers.HomeStarter;
+                winPitcher  = pitchers.WinPitcher;
+                lossPitcher = pitchers.LossPitcher;
+                savePitcher = pitchers.SavePitcher;
+
+                homeEra = eraTask.Result.HomeEra;
+                awayEra = eraTask.Result.AwayEra;
+            }
+
+            var prediction = BuildPrediction(
+                game, standings, runStats,
+                awayStarter, homeStarter,
+                winPitcher, lossPitcher, savePitcher,
+                homeEra, awayEra);
             predictions.Add(prediction);
         }
 
@@ -25,52 +52,76 @@ public class PredictionService(NpbScraperService scraper)
     private static GamePrediction BuildPrediction(
         GameResult game,
         Dictionary<string, double> standings,
-        string? awayStarter,
-        string? homeStarter)
+        Dictionary<string, (int RS, int RA)> runStats,
+        string? awayStarter, string? homeStarter,
+        string? winPitcher, string? lossPitcher, string? savePitcher,
+        double? homeEra, double? awayEra)
     {
-        // 勝率を取得（データなしの場合は0.5）
-        var homeWinRate = standings.TryGetValue(game.HomeTeam, out var hw) ? hw : 0.5;
-        var awayWinRate = standings.TryGetValue(game.AwayTeam, out var aw) ? aw : 0.5;
+        double homeProb, awayProb;
+        int homeRS = 0, homeRA = 0, awayRS = 0, awayRA = 0;
+        bool eraAdjusted = false;
 
-        // 正規化して対戦上の勝率を算出
-        var total = homeWinRate + awayWinRate;
-        var homeProb = total > 0 ? homeWinRate / total : 0.5;
-        var awayProb = 1.0 - homeProb;
+        var hasHomeRuns = runStats.TryGetValue(game.HomeTeam, out var homeRuns);
+        var hasAwayRuns = runStats.TryGetValue(game.AwayTeam, out var awayRuns);
 
-        var comment = GenerateComment(game.HomeTeam, game.AwayTeam, homeProb, awayProb, homeStarter, awayStarter);
+        if (hasHomeRuns && hasAwayRuns && homeRuns.RS + homeRuns.RA > 0 && awayRuns.RS + awayRuns.RA > 0)
+        {
+            homeRS = homeRuns.RS; homeRA = homeRuns.RA;
+            awayRS = awayRuns.RS; awayRA = awayRuns.RA;
+
+            if (homeEra.HasValue || awayEra.HasValue)
+            {
+                // ERA補正ピタゴラス: homeAdj = homeRS × awayERA, awayAdj = awayRS × homeERA
+                // ERA高い先発 → 相手打線が得点しやすい
+                const double leagueAvg = 3.80;
+                var hAdj = homeRS * (awayEra ?? leagueAvg);
+                var aAdj = awayRS * (homeEra ?? leagueAvg);
+                homeProb = hAdj * hAdj / (hAdj * hAdj + aAdj * aAdj);
+                eraAdjusted = true;
+            }
+            else
+            {
+                var homePyth = Pythagorean(homeRS, homeRA);
+                var awayPyth = Pythagorean(awayRS, awayRA);
+                var total = homePyth + awayPyth;
+                homeProb = total > 0 ? homePyth / total : 0.5;
+            }
+            awayProb = 1.0 - homeProb;
+        }
+        else
+        {
+            var homeWinRate = standings.TryGetValue(game.HomeTeam, out var hw) ? hw : 0.5;
+            var awayWinRate = standings.TryGetValue(game.AwayTeam, out var aw) ? aw : 0.5;
+            var total = homeWinRate + awayWinRate;
+            homeProb = total > 0 ? homeWinRate / total : 0.5;
+            awayProb = 1.0 - homeProb;
+        }
 
         return new GamePrediction
         {
-            HomeTeam = game.HomeTeam,
-            AwayTeam = game.AwayTeam,
+            HomeTeam           = game.HomeTeam,
+            AwayTeam           = game.AwayTeam,
             HomeWinProbability = homeProb,
             AwayWinProbability = awayProb,
-            HomeStarterName = homeStarter,
-            AwayStarterName = awayStarter,
-            Comment = comment
+            HomeStarterName    = homeStarter,
+            AwayStarterName    = awayStarter,
+            HomeStarterEra     = homeEra,
+            AwayStarterEra     = awayEra,
+            HomeRunsScored     = homeRS,
+            HomeRunsAllowed    = homeRA,
+            AwayRunsScored     = awayRS,
+            AwayRunsAllowed    = awayRA,
+            WinPitcher         = winPitcher,
+            LossPitcher        = lossPitcher,
+            SavePitcher        = savePitcher,
+            Comment            = eraAdjusted ? "先発ERA補正あり（ピタゴラス勝率）" : "",
         };
     }
 
-    private static string GenerateComment(
-        string homeTeam, string awayTeam,
-        double homeProb, double awayProb,
-        string? homeStarter, string? awayStarter)
+    // ピタゴラス勝率: RS² / (RS² + RA²)
+    private static double Pythagorean(int rs, int ra)
     {
-        var favorite = homeProb >= awayProb ? homeTeam : awayTeam;
-        var favoriteProb = Math.Max(homeProb, awayProb);
-
-        var strengthComment = favoriteProb > 0.60
-            ? $"{favorite}の勝率は今季上位で地力が高い。"
-            : "両チームの勝率は拮抗しており実力差は小さい。";
-
-        var starterComment = (homeStarter, awayStarter) switch
-        {
-            (not null, not null) => $"先発: {awayStarter} vs {homeStarter}。",
-            (not null, null)     => $"先発: {homeStarter}（{homeTeam}）。",
-            (null, not null)     => $"先発: {awayStarter}（{awayTeam}）。",
-            _                    => "先発投手情報が未公開のため投手評価は未反映。"
-        };
-
-        return $"{strengthComment}{starterComment}";
+        if (rs + ra == 0) return 0.5;
+        return (double)rs * rs / ((double)rs * rs + (double)ra * ra);
     }
 }

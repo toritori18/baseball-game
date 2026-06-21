@@ -1,7 +1,6 @@
 @page "/"
 @rendermode InteractiveServer
 @inject NpbScraperService Scraper
-@inject PredictionService Prediction
 @inject NavigationManager Nav
 
 <PageTitle>NPB 今日の試合</PageTitle>
@@ -16,86 +15,167 @@
         <span>読み込み中...</span>
     </div>
 }
-else if (games.Count == 0)
-{
-    <div class="alert alert-info">本日の試合はありません。</div>
-}
 else
 {
-    <div class="d-flex justify-content-end mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <ul class="nav nav-tabs border-bottom-0">
+            <li class="nav-item">
+                <button class="nav-link @(activeTab == "cl" ? "active" : "")" @onclick='() => SwitchTab("cl")'>セ・リーグ</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link @(activeTab == "pl" ? "active" : "")" @onclick='() => SwitchTab("pl")'>パ・リーグ</button>
+            </li>
+        </ul>
         <button class="btn btn-outline-secondary btn-sm" @onclick="ReloadAsync">更新</button>
     </div>
 
-    <div class="row g-3">
-        @foreach (var game in games)
-        {
-            var pred = predictions.FirstOrDefault(p => p.HomeTeam == game.HomeTeam && p.AwayTeam == game.AwayTeam);
-            <div class="col-12 col-md-6 col-lg-4">
-                <div class="card h-100 @(game.IsGiantsGame ? "border-warning" : "")"
-                     style="@(game.IsGiantsGame ? "border-width:2px" : "")"
-                     role="button"
-                     @onclick="() => NavigateToDetail(game)">
-                    @if (game.IsGiantsGame)
-                    {
-                        <div class="card-header bg-warning bg-opacity-25 fw-bold">★ 巨人戦</div>
-                    }
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="text-center flex-fill">
-                                <div class="fw-bold">@game.AwayTeam</div>
-                                <div class="fs-2 fw-bold">@(game.AwayScore?.ToString() ?? "-")</div>
-                            </div>
-                            <div class="text-center px-2 text-muted">vs</div>
-                            <div class="text-center flex-fill">
-                                <div class="fw-bold">@game.HomeTeam</div>
-                                <div class="fs-2 fw-bold">@(game.HomeScore?.ToString() ?? "-")</div>
-                            </div>
-                        </div>
-                        <div class="text-center mt-2">
-                            <span class="badge @StatusBadgeClass(game.Status)">@game.Status</span>
-                        </div>
-                        @if (pred != null)
+    @if (activeTab == "pl" && isLoadingPl)
+    {
+        <div class="d-flex align-items-center gap-2">
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+            <span>読み込み中...</span>
+        </div>
+    }
+    else if (DisplayedGames.Count == 0)
+    {
+        <div class="alert alert-info">本日の試合はありません。</div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var game in DisplayedGames)
+            {
+                pitcherInfo.TryGetValue(game.DetailUrl ?? "", out var p);
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card h-100 @(game.IsGiantsGame ? "border-warning" : "")"
+                         style="@(game.IsGiantsGame ? "border-width:2px" : "")"
+                         role="button"
+                         @onclick="() => NavigateToDetail(game)">
+                        @if (game.IsGiantsGame)
                         {
-                            <div class="mt-3 small text-muted border-top pt-2">
-                                <div>予想勝率: @game.AwayTeam @pred.AwayWinProbability.ToString("P0") vs @game.HomeTeam @pred.HomeWinProbability.ToString("P0")</div>
-                                @if (pred.IsStarterAvailable)
-                                {
-                                    <div>先発: @(pred.AwayStarterName ?? "—") vs @(pred.HomeStarterName ?? "—")</div>
-                                }
-                                else
-                                {
-                                    <div>先発情報なし</div>
-                                }
-                            </div>
+                            <div class="card-header bg-warning bg-opacity-25 fw-bold">★ 巨人戦</div>
                         }
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="text-center flex-fill">
+                                    <div class="fw-bold">@game.AwayTeam</div>
+                                    <div class="fs-2 fw-bold">@(game.AwayScore?.ToString() ?? "-")</div>
+                                </div>
+                                <div class="text-center px-2 text-muted">vs</div>
+                                <div class="text-center flex-fill">
+                                    <div class="fw-bold">@game.HomeTeam</div>
+                                    <div class="fs-2 fw-bold">@(game.HomeScore?.ToString() ?? "-")</div>
+                                </div>
+                            </div>
+                            <div class="text-center mt-2">
+                                <span class="badge @StatusBadgeClass(game.Status)">@game.Status</span>
+                            </div>
+
+                            @* 投手情報（試合状態別） *@
+                            @if (game.Status == "終了" && (p.Win != null || p.Loss != null))
+                            {
+                                <div class="mt-2 small border-top pt-2 d-flex flex-wrap gap-2">
+                                    @if (p.Win != null)
+                                    {
+                                        <span><span class="badge bg-success me-1">勝</span>@p.Win</span>
+                                    }
+                                    @if (p.Loss != null)
+                                    {
+                                        <span><span class="badge bg-danger me-1">負</span>@p.Loss</span>
+                                    }
+                                    @if (p.Save != null)
+                                    {
+                                        <span><span class="badge bg-info text-dark me-1">S</span>@p.Save</span>
+                                    }
+                                </div>
+                            }
+                            else if (game.Status != "終了" && (p.Away != null || p.Home != null))
+                            {
+                                <div class="mt-2 small text-muted border-top pt-2">
+                                    予告先発: @(p.Away ?? "—") vs @(p.Home ?? "—")
+                                </div>
+                            }
+                        </div>
                     </div>
                 </div>
-            </div>
-        }
-    </div>
+            }
+        </div>
+    }
 }
 
 @code {
-    private List<GameResult> games = [];
-    private List<GamePrediction> predictions = [];
+    private static readonly HashSet<string> ClTeams = ["巨人", "阪神", "広島", "中日", "ヤクルト", "DeNA"];
+    private List<GameResult> DisplayedGames => activeTab == "cl" ? clGames : plGames;
+    private static readonly HashSet<string> PlTeams = ["ソフトバンク", "日本ハム", "オリックス", "楽天", "ロッテ", "西武"];
+
+    private List<GameResult> clGames = [];
+    private List<GameResult> plGames = [];
+    private Dictionary<string, (string? Away, string? Home, string? Win, string? Loss, string? Save)> pitcherInfo = [];
     private bool isLoading = true;
+    private bool isLoadingPl = false;
+    private bool plLoaded = false;
+    private string activeTab = "cl";
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadDataAsync();
+        await LoadInitialAsync();
     }
 
-    private async Task LoadDataAsync()
+    private async Task LoadInitialAsync()
     {
         isLoading = true;
-        games = await Scraper.GetTodayResultsAsync();
-        predictions = await Prediction.GetPredictionsAsync(games);
+        var allGames = await Scraper.GetTodayResultsAsync();
+
+        clGames = allGames.Where(g => ClTeams.Contains(g.AwayTeam) || ClTeams.Contains(g.HomeTeam)).ToList();
+        plGames = allGames.Where(g => PlTeams.Contains(g.AwayTeam) || PlTeams.Contains(g.HomeTeam)).ToList();
+
+        // 初回はセ・リーグのみ取得（パ・リーグはタブ切替時に遅延取得）
+        await LoadPitcherInfoAsync(clGames);
         isLoading = false;
+    }
+
+    private async Task LoadPitcherInfoAsync(List<GameResult> games)
+    {
+        var tasks = games
+            .Where(g => !string.IsNullOrEmpty(g.DetailUrl))
+            .Select(async g =>
+            {
+                var info = await Scraper.GetStartersFromDetailAsync(g.DetailUrl!);
+                return (g.DetailUrl!, (info.AwayStarter, info.HomeStarter, info.WinPitcher, info.LossPitcher, info.SavePitcher));
+            });
+        var results = await Task.WhenAll(tasks);
+        foreach (var (url, info) in results)
+            pitcherInfo[url] = info;
+    }
+
+    private async Task SwitchTab(string tab)
+    {
+        activeTab = tab;
+        if (tab == "pl" && !plLoaded)
+        {
+            isLoadingPl = true;
+            StateHasChanged();
+            await LoadPitcherInfoAsync(plGames);
+            plLoaded = true;
+            isLoadingPl = false;
+        }
     }
 
     private async Task ReloadAsync()
     {
-        await LoadDataAsync();
+        plLoaded = false;
+        pitcherInfo.Clear();
+        clGames.Clear();
+        plGames.Clear();
+        await LoadInitialAsync();
+        if (activeTab == "pl")
+        {
+            isLoadingPl = true;
+            StateHasChanged();
+            await LoadPitcherInfoAsync(plGames);
+            plLoaded = true;
+            isLoadingPl = false;
+        }
     }
 
     private void NavigateToDetail(GameResult game)

@@ -11,6 +11,34 @@
     ]
   },
   "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$lines = git status --porcelain 2>$null; $hasCode = $lines | Where-Object { $_ -match '\\.(cs|razor)$' }; if ($hasCode) { @{systemMessage='ソースコードに変更があります。CLAUDE.md を最新化するには /init を実行してください。'} | ConvertTo-Json -Compress }",
+            "shell": "powershell"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$f = '.claude/factcheck.md'; if (Test-Path $f) { $c = [string](Get-Content $f -Raw -Encoding UTF8); @{hookSpecificOutput=@{hookEventName='PreToolUse';additionalContext=$c}} | ConvertTo-Json -Compress } else { '{}' }",
+            "shell": "powershell"
+          },
+          {
+            "type": "command",
+            "command": "$raw = [Console]::In.ReadToEnd(); $j = $raw | ConvertFrom-Json; $f = $j.tool_input.file_path; if ($f -match 'CLAUDE\\.md$') { @{hookSpecificOutput=@{hookEventName='PreToolUse';permissionDecision='ask';permissionDecisionReason='CLAUDE.md を変更しようとしています。ユーザーの明示的な指示がある場合のみ許可してください。'}} | ConvertTo-Json -Compress }",
+            "shell": "powershell"
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [
